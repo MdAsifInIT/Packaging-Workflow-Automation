@@ -1,0 +1,36 @@
+pipeline {
+  agent { label 'windows' }
+  stages {
+    stage('Checkout') {
+      steps { checkout scm }
+    }
+    stage('Lint') {
+      steps {
+        powershell '''
+          Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser
+          Invoke-ScriptAnalyzer -Path . -Recurse
+        '''
+      }
+    }
+    stage('Build') {
+      steps {
+        powershell '''
+          Compress-Archive -Path templates/psadt-template/* -DestinationPath build/package.zip -Force
+        '''
+      }
+    }
+    stage('Test Install') {
+      steps {
+        powershell '''
+          # This should call the test runner script which attempts candidate commands
+          ./scripts/run-candidate-tests.ps1 -ManifestPath examples/sample-app/manifest.json -CandidatesJson examples/sample-app/candidates.json -ArtifactDir examples/sample-app/Files
+        '''
+      }
+    }
+  }
+  post {
+    always {
+      archiveArtifacts artifacts: 'build/**/*.zip', fingerprint: true
+    }
+  }
+}

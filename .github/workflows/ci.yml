@@ -1,0 +1,26 @@
+name: CI - Lint & Validate
+
+on:
+  pull_request:
+    paths:
+      - '**/*.ps1'
+      - 'templates/**'
+      - 'examples/**'
+      - 'docs/**'
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up PowerShell
+        uses: actions/setup-powershell@v2
+      - name: Install PSScriptAnalyzer
+        run: pwsh -Command "Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser"
+      - name: Run PSScriptAnalyzer
+        run: pwsh -Command "Invoke-ScriptAnalyzer -Path . -Recurse -Severity Warning | ConvertTo-Json -Depth 3 > pssa.json || true"
+      - name: Upload PSSA results
+        uses: actions/upload-artifact@v4
+        with:
+          name: pssa
+          path: pssa.json

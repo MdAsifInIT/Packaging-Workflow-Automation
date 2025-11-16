@@ -1,0 +1,16 @@
+[
+  {
+    "id": "1",
+    "command": "<installer> /S",
+    "framework": "NSIS",
+    "confidence": 0.6,
+    "rationale": "Default NSIS pattern found in strings"
+  },
+  {
+    "id": "2",
+    "command": "msiexec /i \"<installer>\" /qn /norestart",
+    "framework": "MSI",
+    "confidence": 0.2,
+    "rationale": "fallback MSI attempt"
+  }
+]

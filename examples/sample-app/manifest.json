@@ -1,0 +1,11 @@
+{
+  "product": "SampleApp",
+  "vendor": "ExampleCorp",
+  "version": "1.0.0",
+  "source_url": "https://example.com/SampleAppSetup.exe",
+  "checksum": "sha256:TODO",
+  "install_context": "System",
+  "prereqs": [],
+  "human_review": true,
+  "notes": "Sample manifest created for examples"
+}

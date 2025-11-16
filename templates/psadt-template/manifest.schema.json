@@ -1,0 +1,13 @@
+{
+  "product": "string",
+  "vendor": "string",
+  "version": "string",
+  "source_url": "string",
+  "checksum": "sha256:hex",
+  "install_context": "System|User",
+  "prereqs": [
+    "string"
+  ],
+  "human_review": true,
+  "notes": "string"
+}

@@ -1,0 +1,65 @@
+{
+  "name": "intake-openai",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "webhook-intake"
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "requestMethod": "GET",
+        "url": "={{$json[\"installer_url\"]}}"
+      },
+      "name": "HTTP Request - Head",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        450,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// compute checksum or call helper service\nreturn items;"
+      },
+      "name": "Function - prepare",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        650,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "temperature": 0.1,
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are a packaging assistant. Output JSON as schema."
+          },
+          {
+            "role": "user",
+            "content": "{{ $json[\"prompt_payload\"] }}"
+          }
+        ]
+      },
+      "name": "OpenAI",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [
+        850,
+        300
+      ]
+    }
+  ]
+}

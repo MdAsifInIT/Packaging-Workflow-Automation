@@ -1,0 +1,11 @@
+# Windows / PowerShell
+*.exe
+*.msi
+*.zip
+*.intunewin
+*.pfx
+AppDeployToolkitMain.log
+test-output/
+.vscode/
+node_modules/
+.DS_Store
