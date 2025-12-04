@@ -3,63 +3,175 @@
   "nodes": [
     {
       "parameters": {
-        "path": "webhook-intake"
+        "path": "webhook-intake",
+        "responseMode": "lastNode",
+        "options": {}
       },
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [
-        250,
-        300
-      ]
+      "position": [ 100, 300 ]
     },
     {
       "parameters": {
-        "requestMethod": "GET",
-        "url": "={{$json[\"installer_url\"]}}"
+        "url": "={{$json[\"installer_url\"]}}",
+        "responseFormat": "file",
+        "options": {}
       },
-      "name": "HTTP Request - Head",
+      "name": "Download Installer",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 1,
-      "position": [
-        450,
-        300
-      ]
+      "position": [ 300, 300 ]
     },
     {
       "parameters": {
-        "functionCode": "// compute checksum or call helper service\nreturn items;"
+        "functionCode": "// Calculate SHA256 and extract metadata\n// In a real workflow, this would use a binary processing node or external service\nconst crypto = require('crypto');\nconst fileData = items[0].binary.data;\n// Placeholder logic\nreturn [\n  {\n    json: {\n      sha256: 'checksum_placeholder',\n      size: 123456,\n      mime: 'application/octet-stream',\n      strings_snippet: '...',\n      msi_properties: {}\n    }\n  }\n];"
       },
-      "name": "Function - prepare",
+      "name": "Analyze Binary",
       "type": "n8n-nodes-base.function",
       "typeVersion": 1,
-      "position": [
-        650,
-        300
-      ]
+      "position": [ 500, 300 ]
     },
     {
       "parameters": {
-        "model": "gpt-4o-mini",
-        "temperature": 0.1,
+        "model": "gpt-4",
+        "temperature": 0,
         "messages": [
           {
             "role": "system",
-            "content": "You are a packaging assistant. Output JSON as schema."
+            "content": "You are a packaging assistant. Output MUST be valid JSON exactly matching the schema in the user message. Do not output text outside the JSON. If uncertain about a field, set its value to \"TODO\" and set human_review:true. Use confidence values between 0.0 and 1.0. Temperature: 0."
           },
           {
             "role": "user",
-            "content": "{{ $json[\"prompt_payload\"] }}"
+            "content": "Schema:\n{...} // Insert Schema from README\n\nInput:\n{\n \"installer_url\":\"{{$node[\"Webhook\"].json[\"installer_url\"]}}\",\n \"file_signature\": {\"mime\":\"{{$json[\"mime\"]}}\",\"size_bytes\":{{$json[\"size\"]}},\"sha256\":\"{{$json[\"sha256\"]}}\"},\n \"release_notes\":\"{{$node[\"Webhook\"].json[\"release_notes\"]}}\",\n \"strings_snippet\":\"{{$json[\"strings_snippet\"]}}\",\n \"msi_inspection\": {{$json[\"msi_properties\"]}}\n}\n\nTask:\n1) Propose candidate silent install commands...\n2) Fill manifest fields...\n3) Provide verification_hints...\n4) Return a PSAppDeployToolkit Deploy-Application.ps1 skeleton...\n5) Output ONLY JSON matching the schema exactly."
           }
         ]
       },
-      "name": "OpenAI",
+      "name": "OpenAI - Generate Manifest",
       "type": "n8n-nodes-base.openAi",
       "typeVersion": 1,
-      "position": [
-        850,
-        300
+      "position": [ 700, 300 ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "repository": "packaging-repo",
+        "branch": "ai/PKG-{{$node[\"Webhook\"].json[\"ticket_id\"]}}-{{$node[\"Analyze Binary\"].json[\"sha256\"]}}",
+        "files": {
+          "products/{{$json[\"manifest\"][\"product\"]}}/manifest.json": "={{JSON.stringify($json[\"manifest\"], null, 2)}}",
+          "products/{{$json[\"manifest\"][\"product\"]}}/candidates.json": "={{JSON.stringify($json[\"candidates\"], null, 2)}}",
+          "products/{{$json[\"manifest\"][\"product\"]}}/Deploy-Application.ps1": "={{$json[\"psadt_skeleton\"]}}"
+        }
+      },
+      "name": "GitHub - Create Branch & Commit",
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1,
+      "position": [ 900, 300 ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "repository": "packaging-repo",
+        "title": "AI Packaging: {{$json[\"manifest\"][\"product\"]}}",
+        "body": "AI generated package.\nConfidence: {{$json[\"manifest\"][\"confidence_overall\"]}}\nHuman Review: {{$json[\"manifest\"][\"human_review\"]}}",
+        "base": "main",
+        "head": "ai/PKG-{{$node[\"Webhook\"].json[\"ticket_id\"]}}-{{$node[\"Analyze Binary\"].json[\"sha256\"]}}"
+      },
+      "name": "GitHub - Create PR",
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1,
+      "position": [ 1100, 300 ]
+    },
+    {
+      "parameters": {
+        "url": "http://jenkins:8080/job/PackagingPipeline/buildWithParameters",
+        "requestMethod": "POST",
+        "options": {},
+        "queryParametersUi": {
+          "parameter": [
+            {
+              "name": "PRODUCT",
+              "value": "={{$json[\"manifest\"][\"product\"]}}"
+            },
+            {
+              "name": "PR_ID",
+              "value": "={{$json[\"number\"]}}"
+            }
+          ]
+        }
+      },
+      "name": "Trigger Jenkins",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [ 1300, 300 ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Download Installer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Installer": {
+      "main": [
+        [
+          {
+            "node": "Analyze Binary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Binary": {
+      "main": [
+        [
+          {
+            "node": "OpenAI - Generate Manifest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI - Generate Manifest": {
+      "main": [
+        [
+          {
+            "node": "GitHub - Create Branch & Commit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GitHub - Create Branch & Commit": {
+      "main": [
+        [
+          {
+            "node": "GitHub - Create PR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GitHub - Create PR": {
+      "main": [
+        [
+          {
+            "node": "Trigger Jenkins",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
-  ]
+  }
 }

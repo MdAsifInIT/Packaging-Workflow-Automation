@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "product": { "type": "string" },
+    "vendor": { "type": "string" },
+    "version": { "type": "string" },
+    "source_url": { "type": "string", "format": "uri" },
+    "checksum": { "type": "string" },
+    "install_context": { "type": "string", "enum": ["System", "User"] },
+    "prereqs": { "type": "array", "items": { "type": "string" } },
+    "human_review": { "type": "boolean" },
+    "notes": { "type": "string" },
+    "product_code": { "type": "string" },
+    "uninstall_command": { "type": "string" },
+    "verification_hints": { "type": "array", "items": { "type": "string" } },
+    "confidence_overall": { "type": "number", "minimum": 0, "maximum": 1 }
+  },
+  "required": [
+    "product",
+    "vendor",
+    "version",
+    "source_url",
+    "checksum",
+    "install_context",
+    "human_review"
+  ]
+}
