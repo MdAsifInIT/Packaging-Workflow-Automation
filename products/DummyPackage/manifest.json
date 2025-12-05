@@ -1,0 +1,8 @@
+{
+  "product": "DummyPackage",
+  "product_code": "{00000000-0000-0000-0000-000000000000}",
+  "version": "1.0.0",
+  "verification_hints": [
+    "\"C:\\Program Files\\DummyPackage\\DummyApp.exe\" /check"
+  ]
+}

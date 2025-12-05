@@ -26,16 +26,23 @@ function Verify-Installed {
   }
 
   # Layer 3: Start Menu/Shortcut checks (look for product in start menu)
-  $startmenu = Join-Path $env:ProgramData 'Microsoft\Windows\Start Menu\Programs'
-  if (Get-ChildItem -Path $startmenu -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.Name -like "*$($manifest.product)*" }) { return @{passed=$true;method='shortcut'} }
+  if ($env:ProgramData) {
+    $startmenu = Join-Path $env:ProgramData 'Microsoft\Windows\Start Menu\Programs'
+    if (Get-ChildItem -Path $startmenu -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.Name -like "*$($manifest.product)*" }) { return @{passed=$true;method='shortcut'} }
+  }
 
   # Layer 4: smoke test (non-interactive)
   if ($manifest.verification_hints) {
     foreach ($cmd in $manifest.verification_hints) {
       try {
-        $parts = $cmd -split ' '
-        $exe = $parts[0]
-        $args = ($parts | Select-Object -Skip 1) -join ' '
+        if ($cmd -match '^"([^"]+)"\s*(.*)$') {
+          $exe = $matches[1]
+          $args = $matches[2]
+        } else {
+          $parts = $cmd -split ' '
+          $exe = $parts[0]
+          $args = ($parts | Select-Object -Skip 1) -join ' '
+        }
         $proc = Start-Process -FilePath $exe -ArgumentList $args -NoNewWindow -PassThru -ErrorAction SilentlyContinue
         Start-Sleep -Seconds 2
         if ($proc -and $proc.HasExited) { return @{passed=$true;method='smoke';cmd=$cmd} }
@@ -47,7 +54,8 @@ function Verify-Installed {
 
 foreach ($c in $candidates | Sort-Object -Property @{Expression={[double]$_.confidence}} -Descending) {
   Write-Host "Trying candidate $($c.id) (confidence $($c.confidence)): $($c.command)"
-  $cmd = $c.command -replace '<installer>', (Join-Path $ArtifactDir 'source_installer.exe')
+  $installerPath = Join-Path $ArtifactDir 'source_installer.exe'
+  $cmd = $c.command -replace '<installer>', "`"$installerPath`""
   $logPath = Join-Path $OutputDir "candidate-$($c.id).log"
   try {
     # Run installer as a background process; capture output
