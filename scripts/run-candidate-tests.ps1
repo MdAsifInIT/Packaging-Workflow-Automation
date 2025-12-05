@@ -12,7 +12,7 @@ $manifest = Get-Content $ManifestPath -Raw | ConvertFrom-Json
 $candidates = Get-Content $CandidatesJson -Raw | ConvertFrom-Json
 
 # helper: layered verification
-function Verify-Installed {
+function Test-Installed {
   param($manifest, $verification_hints)
   # Layer 1: MSI product code / registry
   if ($manifest.product_code -and (Get-ChildItem 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall' -Recurse | Where-Object {
@@ -26,28 +26,38 @@ function Verify-Installed {
   }
 
   # Layer 3: Start Menu/Shortcut checks (look for product in start menu)
-  $startmenu = Join-Path $env:ProgramData 'Microsoft\Windows\Start Menu\Programs'
-  if (Get-ChildItem -Path $startmenu -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.Name -like "*$($manifest.product)*" }) { return @{passed=$true;method='shortcut'} }
+  if ($env:ProgramData) {
+    $startmenu = Join-Path $env:ProgramData 'Microsoft\Windows\Start Menu\Programs'
+    if (Get-ChildItem -Path $startmenu -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.Name -like "*$($manifest.product)*" }) { return @{passed=$true;method='shortcut'} }
+  }
 
   # Layer 4: smoke test (non-interactive)
   if ($manifest.verification_hints) {
     foreach ($cmd in $manifest.verification_hints) {
       try {
-        $parts = $cmd -split ' '
-        $exe = $parts[0]
-        $args = ($parts | Select-Object -Skip 1) -join ' '
-        $proc = Start-Process -FilePath $exe -ArgumentList $args -NoNewWindow -PassThru -ErrorAction SilentlyContinue
+        if ($cmd -match '^"([^"]+)"\s*(.*)$') {
+          $exe = $matches[1]
+          $procArgs = $matches[2]
+        } else {
+          $parts = $cmd -split ' '
+          $exe = $parts[0]
+          $procArgs = ($parts | Select-Object -Skip 1) -join ' '
+        }
+        $proc = Start-Process -FilePath $exe -ArgumentList $procArgs -NoNewWindow -PassThru -ErrorAction SilentlyContinue
         Start-Sleep -Seconds 2
         if ($proc -and $proc.HasExited) { return @{passed=$true;method='smoke';cmd=$cmd} }
-      } catch {}
+      } catch {
+        Write-Verbose "Smoke test failed for $cmd"
+      }
     }
   }
   return @{passed=$false}
 }
 
 foreach ($c in $candidates | Sort-Object -Property @{Expression={[double]$_.confidence}} -Descending) {
-  Write-Host "Trying candidate $($c.id) (confidence $($c.confidence)): $($c.command)"
-  $cmd = $c.command -replace '<installer>', (Join-Path $ArtifactDir 'source_installer.exe')
+  Write-Output "Trying candidate $($c.id) (confidence $($c.confidence)): $($c.command)"
+  $installerPath = Join-Path $ArtifactDir 'source_installer.exe'
+  $cmd = $c.command -replace '<installer>', "`"$installerPath`""
   $logPath = Join-Path $OutputDir "candidate-$($c.id).log"
   try {
     # Run installer as a background process; capture output
@@ -58,7 +68,7 @@ foreach ($c in $candidates | Sort-Object -Property @{Expression={[double]$_.conf
 
   Start-Sleep -Seconds 5
 
-  $verify = Verify-Installed -manifest $manifest -verification_hints $manifest.verification_hints
+  $verify = Test-Installed -manifest $manifest -verification_hints $manifest.verification_hints
   $result = @{
     id = $c.id
     command = $cmd
@@ -70,12 +80,12 @@ foreach ($c in $candidates | Sort-Object -Property @{Expression={[double]$_.conf
   $result | ConvertTo-Json -Depth 4 | Out-File -FilePath (Join-Path $OutputDir ("result-$($c.id).json")) -Encoding utf8
 
   if ($verify.passed) {
-    Write-Host "Candidate $($c.id) verified via $($verify.method)"
+    Write-Output "Candidate $($c.id) verified via $($verify.method)"
     exit 0
   } else {
-    Write-Host "Candidate $($c.id) did not verify."
+    Write-Output "Candidate $($c.id) did not verify."
   }
 }
 
-Write-Host "No candidate verified. Exiting with failure."
+Write-Output "No candidate verified. Exiting with failure."
 exit 2

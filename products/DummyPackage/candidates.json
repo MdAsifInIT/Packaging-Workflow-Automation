@@ -1,0 +1,7 @@
+[
+  {
+    "id": "install-1",
+    "command": "<installer> /S",
+    "confidence": 1.0
+  }
+]
