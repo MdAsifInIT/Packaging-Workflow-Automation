@@ -1,0 +1,137 @@
+=================================================================
+CODEBASE VALIDATION REPORT - Packaging Workflow Automation
+Generated: 2025-12-12 19:49:13
+=================================================================
+
+SCHEMA VALIDATION
+-----------------------------------------------------------------
+✓ templates/manifest.schema.json exists and is valid JSON
+  Required fields: product, vendor, version, source_url, checksum, 
+                   install_context, human_review
+
+MANIFEST FILES
+-----------------------------------------------------------------
+✗ products/DummyPackage/manifest.json
+  MISSING REQUIRED FIELDS: vendor, source_url, checksum, 
+                           install_context, human_review
+  STATUS: INVALID - Cannot be used in production workflow
+  
+✓ examples/sample-app/manifest.json
+  All required fields present
+  Contains TODO value in checksum field (expected for example)
+
+CANDIDATES FILES  
+-----------------------------------------------------------------
+✓ products/DummyPackage/candidates.json
+  Valid structure with proper confidence values
+  Uses <installer> placeholder correctly
+  Missing optional fields: framework, rationale
+
+✓ examples/sample-app/candidates.json
+  Valid structure with all recommended fields
+  Properly ordered by confidence (0.6, 0.2)
+
+PSADT TEMPLATES & SCRIPTS
+-----------------------------------------------------------------
+✓ templates/psadt-template/Deploy-Application.ps1.template exists
+  Implements layered verification pattern
+  Uses <installer> placeholder substitution
+  Error handling present
+
+✓ examples/sample-app/Deploy-Application.ps1 exists
+  Simplified example implementation
+
+✗ products/DummyPackage/Deploy-Application.ps1
+  MISSING - Required for complete package
+
+JENKINS & CI
+-----------------------------------------------------------------
+✓ Jenkinsfile exists and follows documented structure
+  - Stages: Checkout, Lint PS, Download Installer, Tests, Upload
+  - Uses Windows agent label
+  - Parameterized for PRODUCT and PR_ID
+  - Archives test output
+
+✓ scripts/run-candidate-tests.ps1 exists
+  Implements 4-layer verification:
+    1. MSI ProductCode registry check
+    2. Expected path verification  
+    3. Start Menu shortcut detection
+    4. Smoke test execution
+
+FOLDER STRUCTURE COMPLIANCE
+-----------------------------------------------------------------
+✓ Core directories exist:
+  - templates/ (with psadt-template, manifest.schema.json)
+  - products/ (for AI-generated packages)
+  - scripts/ (with run-candidate-tests.ps1)
+  - examples/ (with sample-app reference)
+  - docs/ (documentation)
+
+✗ products/DummyPackage/ incomplete:
+  - Missing Deploy-Application.ps1
+  - Manifest missing required fields
+  - No Files/ subdirectory
+
+TOOLING & DEPENDENCIES
+-----------------------------------------------------------------
+✗ PSScriptAnalyzer not installed
+  REQUIRED for CI lint stage
+  Install: Install-Module -Name PSScriptAnalyzer -Force
+
+BRANCH & PR CONVENTIONS
+-----------------------------------------------------------------
+✓ Documentation defines ai/PKG-<ticket>-<sha256> pattern
+✓ Required labels documented: ai-generated, verified-primary, needs-review
+✓ Auto-merge policy documented (confidence >= 0.90, human_review=false)
+
+DETERMINISTIC CLASSIFIER
+-----------------------------------------------------------------
+○ n8n-workflows/intake-openai.json exists (not validated in this scan)
+○ Pre-LLM classification documented but not validated
+
+CRITICAL ISSUES REQUIRING ATTENTION
+=================================================================
+1. products/DummyPackage/manifest.json is INVALID
+   - Missing 5 required fields per schema
+   - Cannot be used in automated workflow
+   - RECOMMENDATION: Complete or mark as test fixture
+
+2. products/DummyPackage/ is incomplete
+   - Missing Deploy-Application.ps1
+   - Should follow examples/sample-app/ structure
+   - RECOMMENDATION: Complete or remove
+
+3. PSScriptAnalyzer not installed
+   - Jenkins pipeline will fail at Lint PS stage
+   - RECOMMENDATION: Install on dev machine and CI agents
+
+RECOMMENDATIONS
+=================================================================
+HIGH PRIORITY:
+- Fix products/DummyPackage/manifest.json or clearly mark as incomplete
+- Add Deploy-Application.ps1 to products/DummyPackage/
+- Install PSScriptAnalyzer: Install-Module -Name PSScriptAnalyzer -Force
+
+MEDIUM PRIORITY:
+- Add framework and rationale fields to DummyPackage candidates
+- Create validation script (e.g., tests/validate-schema.ps1)
+- Add pre-commit hooks for manifest validation
+
+LOW PRIORITY:  
+- Document expected Files/ subdirectory structure
+- Add examples for multiple installer types (MSI, NSIS, etc.)
+- Create template for README_AI.md
+
+OVERALL STATUS: 🟡 PARTIAL COMPLIANCE
+=================================================================
+Core architecture: ✓ Compliant
+Example reference: ✓ Complete
+Test product: ✗ Incomplete
+CI pipeline: ✓ Functional (pending PSScriptAnalyzer)
+Documentation: ✓ Comprehensive
+
+The codebase structure follows the documented architecture correctly.
+Main issues are in the test/example product (DummyPackage) which
+should be completed or removed to avoid confusion.
+=================================================================
